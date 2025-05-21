@@ -16,7 +16,7 @@ SAMPLING_RATE = 16000 # 采样率 (Hz) - pyroomacoustics often works well with 1
 # 2. hello.py 只保留 main() 及其调用逻辑，并从 src 导入。
 # 3. 入口保持不变。
 
-from src.simulation import SoundSource, Microphone, simulate_with_pyroomacoustics
+from src.simulation import SoundSource, Microphone, simulate_with_pyroomacoustics, SAMPLING_RATE
 from src.evaluation import evaluate_array_output_conceptual
 from src.visualization import plot_signals_and_room
 
@@ -63,7 +63,7 @@ def main():
 
     # 8. 可视化
     if recorded_signals_pra:
-        plot_signals_and_room(room_obj, ground_truth_signal, recorded_signals_pra, duration, source1)
+        plot_signals_and_room(room_obj, ground_truth_signal, recorded_signals_pra, duration, source1, SAMPLING_RATE)
 
 if __name__ == "__main__":
     main()

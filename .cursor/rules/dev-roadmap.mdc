@@ -49,6 +49,11 @@ alwaysApply: false
 5. 引入PyVista等高级3D库，提升交互与视觉效果（基础已实现，动画/场分布为后续扩展）
 6. 持续扩展仿真与可视化功能
 
+## 代码一致性与可维护性建议
+
+- 推荐将全局常量（如 `SPEED_OF_SOUND`、`SAMPLING_RATE`）集中定义在 [src/simulation.py](mdc:src/simulation.py) 或专用配置模块，避免多处重复定义，确保一致性。
+- Matplotlib 字体设置建议仅在主入口（如 [src/gui/main_window.py](mdc:src/gui/main_window.py) 或 [hello.py](mdc:hello.py)）统一设置，其他模块无需重复。
+
 ---
 
 如需具体模块设计、技术选型对比或集成示例，可随时查阅本规则或补充新规则。

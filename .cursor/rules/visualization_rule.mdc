@@ -20,5 +20,12 @@ files: ["[src/visualization.py](mdc:src/visualization.py)"]
 这些函数通常接收 `ax` (Matplotlib Axes 对象)、信号数据、采样率等参数，并更新 `ax` 上的绘图。
 该文件还保留了一个原始的 `plot_signals_and_room` 函数，用于非GUI环境或未来的重构，该函数会创建并显示多个独立的图形窗口。
 
+## 可视化与评估
+
+- `plot_signals_and_room` 等函数的采样率参数应始终从 [src/simulation.py](mdc:src/simulation.py) 统一获取，避免 hardcode。
+- 多声源仿真时，ground_truth_signal 当前仅取第一个声源，后续可扩展为多源混合或多源评估。
+
+
+
 
 

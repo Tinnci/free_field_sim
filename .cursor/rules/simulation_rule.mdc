@@ -12,5 +12,12 @@ alwaysApply: false
 
 该文件还定义了一些常量，如声速 `SPEED_OF_SOUND` 和默认采样率 `SAMPLING_RATE`。
 
+## 仿真参数与异常处理建议
+
+- `simulate_with_pyroomacoustics` 中 `max_order` 默认值（如17）可考虑暴露为用户可选参数，或根据场景自动调整，避免不必要的高计算量。
+- `Microphone._apply_frequency_response` 若遇到无效滤波参数（如截止频率超出范围），建议输出警告日志，便于调试和用户排查。
+
+
+
 
 
