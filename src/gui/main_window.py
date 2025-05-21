@@ -691,11 +691,17 @@ class MainWindow(QMainWindow):
         if not selected_items:
             QMessageBox.warning(self, "操作无效", "请先选择一个要移除的声源。")
             return
-        for item in selected_items:
-            self.sources_list_widget.takeItem(self.sources_list_widget.row(item))
-        if self.sources_list_widget.count() == 0: # Ensure at least one source if all are removed
+
+        # 获取选中项的行号，并降序排列，以便从后往前删除，避免索引问题
+        rows_to_remove = sorted([self.sources_list_widget.row(item) for item in selected_items], reverse=True)
+
+        for row in rows_to_remove:
+            self.sources_list_widget.takeItem(row) # 从 QListWidget 中移除
+            if 0 <= row < len(self.sources_data):  # 检查索引有效性
+                self.sources_data.pop(row)         # 从数据列表中移除对应项
+
+        if self.sources_list_widget.count() == 0:
             QMessageBox.information(self, "提示", "至少需要一个声源。已自动添加默认声源。")
-            # Add a default source to self.sources_data and list_widget if needed
             default_source = {
                 "name": "Default Source",
                 "position": [2.0, 3.0, 1.5],
@@ -938,6 +944,9 @@ class MainWindow(QMainWindow):
 
         if picked_actor is None or not hasattr(picked_actor, 'name'):
             self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
+            self.edit_picked_object_button.setEnabled(False)
+            self.picked_object_type = None
+            self.picked_object_index = -1
             return
 
         # 高亮当前actor
@@ -953,6 +962,7 @@ class MainWindow(QMainWindow):
 
         actor_name = picked_actor.name
         info_text = f"选中了场景对象: {actor_name}\n(类型未知)"
+        parsed_successfully = False
 
         if actor_name.startswith('source_'):
             try:
@@ -966,6 +976,9 @@ class MainWindow(QMainWindow):
                         f"位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n"
                         f"信号: {s_data.get('signal_type_display')}"
                     )
+                    self.picked_object_type = 'source'
+                    self.picked_object_index = idx
+                    parsed_successfully = True
                 else:
                     info_text = f"选中了声源，但索引超出范围: {actor_name} (idx: {idx})"
             except (IndexError, ValueError) as e:
@@ -984,12 +997,22 @@ class MainWindow(QMainWindow):
                         f"灵敏度: {m_data.get('sensitivity')}\n"
                         f"频响: {m_data.get('freq_response_type_display')}"
                     )
+                    self.picked_object_type = 'mic'
+                    self.picked_object_index = idx
+                    parsed_successfully = True
                 else:
                     info_text = f"选中了麦克风，但索引超出范围: {actor_name} (idx: {idx})"
             except (IndexError, ValueError) as e:
                 info_text = f"选中了麦克风，但无法解析索引: {actor_name}, Error: {e}"
 
         self.selected_object_info_label.setText(info_text)
+
+        if parsed_successfully:
+            self.edit_picked_object_button.setEnabled(True)
+        else:
+            self.edit_picked_object_button.setEnabled(False)
+            self.picked_object_type = None
+            self.picked_object_index = -1
 
     def handle_pyvista_pick_position(self, position):
         """坐标拾取模式下，判断最近对象并显示属性，并支持一键编辑。"""
