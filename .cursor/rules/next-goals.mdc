@@ -30,6 +30,7 @@ alwaysApply: false
 ### 3. 3D可视化与用户体验增强
 - 3D视图对象高亮、属性面板、视角重置等。
 - 优化3D交互体验。
+- 受限于 pyvistaqt 的 QtInteractor 实现，当前3D对象点击仅支持属性显示，暂不支持真正的actor高亮（见 visualization3d_rule.mdc 说明）。
 
 ### 4. 持续完善输入校验与文档
 - 更严格的输入校验与错误提示。

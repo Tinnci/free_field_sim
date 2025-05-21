@@ -960,7 +960,7 @@ class MainWindow(QMainWindow):
         self.selected_object_info_label.setText(info_text)
 
     def handle_pyvista_pick_position(self, position):
-        """坐标拾取模式下，判断最近对象并显示属性。"""
+        """坐标拾取模式下，判断最近对象并显示属性，并支持一键编辑。"""
         # 取消上一个高亮（坐标拾取无法高亮actor，仅清除属性）
         if self.highlighted_actor is not None and self.original_actor_color is not None:
             try:
@@ -997,23 +997,61 @@ class MainWindow(QMainWindow):
 
         if picked_type == 'source':
             s_data = self.sources_data[picked_idx]
+            # 展示详细信号参数
+            signal_params_str = '\n'.join([f"  - 频率: {c['freq']} Hz, 幅度: {c['amp']}" for c in s_data.get('signal_params', {}).get('components', [])])
             info_text = (
                 f"选中的声源:\n名称: {s_data.get('name')}\n"
                 f"位置: ({picked_pos[0]:.2f}, {picked_pos[1]:.2f}, {picked_pos[2]:.2f}) m\n"
-                f"信号: {s_data.get('signal_type_display')}"
+                f"信号: {s_data.get('signal_type_display')}\n"
+                f"信号参数:\n{signal_params_str if signal_params_str else '无'}\n"
+                f"[编辑此声源]"
             )
             self.selected_object_info_label.setText(info_text)
+            # 支持一键编辑
+            def edit_source_from_panel():
+                dialog = SourcePropertiesDialog(self, source_data=s_data)
+                if dialog.exec() == QDialog.Accepted:
+                    updated_source_data = dialog.get_source_data()
+                    try:
+                        pos_vec = self.parse_vector_input(updated_source_data["position_str"], 3)
+                        updated_source_data["position"] = pos_vec
+                        self.sources_data[picked_idx] = updated_source_data
+                        self.sources_list_widget.item(picked_idx).setText(f"{updated_source_data['name']}: {updated_source_data['position_str']} ({updated_source_data['signal_type_display']})")
+                        QMessageBox.information(self, "成功", f"声源 '{updated_source_data['name']}' 已更新。")
+                        self.run_simulation_and_update_plots()
+                    except Exception as e:
+                        QMessageBox.critical(self, "更新失败", f"更新声源时出错: {e}")
+            self.selected_object_info_label.mousePressEvent = lambda event: edit_source_from_panel() if '[编辑此声源]' in self.selected_object_info_label.text() else None
         elif picked_type == 'mic':
             m_data = self.mics_data[picked_idx]
+            freq_params = m_data.get('freq_response_params', {})
+            freq_params_str = '\n'.join([f"  - {k}: {v}" for k, v in freq_params.items()])
             info_text = (
                 f"选中的麦克风:\n名称: {m_data.get('name')}\n"
                 f"位置: ({picked_pos[0]:.2f}, {picked_pos[1]:.2f}, {picked_pos[2]:.2f}) m\n"
                 f"灵敏度: {m_data.get('sensitivity')}\n"
-                f"频响: {m_data.get('freq_response_type_display')}"
+                f"频响: {m_data.get('freq_response_type_display')}\n"
+                f"频响参数:\n{freq_params_str if freq_params_str else '无'}\n"
+                f"[编辑此麦克风]"
             )
             self.selected_object_info_label.setText(info_text)
+            def edit_mic_from_panel():
+                dialog = MicrophonePropertiesDialog(self, mic_data=m_data)
+                if dialog.exec() == QDialog.Accepted:
+                    updated_mic_data = dialog.get_mic_data()
+                    try:
+                        pos_vec = self.parse_vector_input(updated_mic_data["position_str"], 3)
+                        updated_mic_data["position"] = pos_vec
+                        self.mics_data[picked_idx] = updated_mic_data
+                        self.mics_list_widget.item(picked_idx).setText(f"{updated_mic_data['name']}: {updated_mic_data['position_str']} ({updated_mic_data['freq_response_type_display']})")
+                        QMessageBox.information(self, "成功", f"麦克风 '{updated_mic_data['name']}' 已更新。")
+                        self.run_simulation_and_update_plots()
+                    except Exception as e:
+                        QMessageBox.critical(self, "更新失败", f"更新麦克风时出错: {e}")
+            self.selected_object_info_label.mousePressEvent = lambda event: edit_mic_from_panel() if '[编辑此麦克风]' in self.selected_object_info_label.text() else None
         else:
             self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
+            self.selected_object_info_label.mousePressEvent = None
 
     def save_config(self):
         config = {
