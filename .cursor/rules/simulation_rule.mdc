@@ -1,0 +1,14 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+`simulation.py` 文件是声学仿真的核心模块。
+
+它定义了以下关键类和函数：
+- `SoundSource`: 表示声源，能够根据类型（如"白噪声"、"正弦波组合"、"脉冲"）和参数生成信号。
+- `Microphone`: 表示麦克风，具有灵敏度、自噪声和频率响应等特性。
+- `simulate_with_pyroomacoustics`: 使用 `pyroomacoustics` 库执行实际的声场仿真。它接收房间尺寸、声源对象、麦克风对象列表、仿真时长和混响时间 (RT60) 等参数，并返回录制到的信号和仿真房间对象。
+
+该文件还定义了一些常量，如声速 `SPEED_OF_SOUND` 和默认采样率 `SAMPLING_RATE`。
+

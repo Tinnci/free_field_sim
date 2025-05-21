@@ -1,0 +1,15 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+\
+---
+title: "Simulation Evaluation"
+files: ["[src/evaluation.py](mdc:src/evaluation.py)"]
+---
+
+`evaluation.py` 文件包含用于分析和评估声学仿真输出的函数。
+
+目前，它提供了一个概念性的函数 `evaluate_array_output_conceptual`，用于计算录制信号和真实信号之间的均方误差 (MSE)。
+

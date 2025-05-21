@@ -1,0 +1,23 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+\
+---
+title: "2D Plotting for GUI"
+files: ["[src/visualization.py](mdc:src/visualization.py)"]
+---
+
+`visualization.py` 文件包含用于生成和显示声学仿真结果的2D绘图的函数，这些函数设计为可以嵌入到GUI中。
+
+主要功能包括在给定的 Matplotlib Axes 对象上绘制：
+- `plot_rir_embed`: 绘制房间冲激响应 (RIR)。
+- `plot_signal_time_domain_embed`: 绘制单个时域信号。
+- `plot_signals_time_domain_embed`: 绘制多个时域信号，包括真实信号和麦克风录制的信号。
+- `plot_signal_frequency_domain_embed`: 绘制单个频域信号 (FFT)。
+- `plot_signals_frequency_domain_embed`: 绘制多个频域信号 (FFT)。
+
+这些函数通常接收 `ax` (Matplotlib Axes 对象)、信号数据、采样率等参数，并更新 `ax` 上的绘图。
+该文件还保留了一个原始的 `plot_signals_and_room` 函数，用于非GUI环境或未来的重构，该函数会创建并显示多个独立的图形窗口。
+

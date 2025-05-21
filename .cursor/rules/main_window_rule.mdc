@@ -1,0 +1,24 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+\
+---
+title: "Main GUI Window"
+files: ["[src/gui/main_window.py](mdc:src/gui/main_window.py)"]
+---
+
+`main_window.py` 文件定义了声学仿真工具的主用户界面 (GUI)。它使用 PySide6 构建，并集成了 Matplotlib 和 PyVista 用于绘图。
+
+主要功能包括：
+- 设置仿真参数（房间尺寸、RT60、信号时长）。
+- 管理声源和麦克风（添加、编辑、移除）。
+- 运行声学仿真。
+- 以选项卡形式显示结果：
+    - 3D 场景 (使用 PyVista)。
+    - 房间冲激响应 (RIR)。
+    - 时域信号。
+    - 频域信号 (FFT)。
+- 保存和加载仿真配置。
+

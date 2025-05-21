@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: *.py
 alwaysApply: false
 ---
 # 仿真配置管理规范
