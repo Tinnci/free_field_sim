@@ -11,9 +11,11 @@ files: ["[src/evaluation.py](mdc:src/evaluation.py)"]
 
 `evaluation.py` 文件包含用于分析和评估声学仿真输出的函数。
 
-目前，它提供了一个概念性的函数 `evaluate_array_output_conceptual`，用于计算录制信号和真实信号之间的均方误差 (MSE)。
+- `evaluate_array_output_conceptual` 用于计算录制信号和真实信号之间的均方误差 (MSE)。
+- 新增 `calculate_c50`、`calculate_d50`、`calculate_snr` 等多种评估指标。
+- 建议在GUI中增加"评估结果"标签页，展示各类指标。
 
-- 多声源仿真时，当前评估以第一个声源信号为基准。后续可扩展为多源混合或分源评估。
+
 
 
 

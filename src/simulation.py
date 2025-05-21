@@ -97,7 +97,7 @@ class Microphone:
     def _apply_frequency_response(self, signal, current_sampling_rate):
         if self.freq_response_type and self.cutoff_freqs:
             nyquist = 0.5 * current_sampling_rate
-            order = 4 # Filter order
+            order = self.cutoff_freqs.get('order', 4)
 
             if self.freq_response_type == '低通': # Updated to match Chinese type from GUI
                 cutoff = self.cutoff_freqs.get('cutoff')
