@@ -18,6 +18,20 @@ files: ["[src/visualization3d.py](mdc:src/visualization3d.py)"]
 
 它检查 PyVista 是否可用，并可以相应地调整其行为。
 
+## PyVistaQt 3D拾取兼容性说明
+
+- 当前 [src/visualization3d.py](mdc:src/visualization3d.py) 和 [src/gui/main_window.py](mdc:src/gui/main_window.py) 使用 PyVista 的 QtInteractor 进行嵌入式3D渲染。
+- 由于 pyvistaqt 的 QtInteractor 类**不支持** `enable_actor_picking` 方法，仅支持 `track_click_position`（坐标拾取），因此3D对象点击后**只能显示属性，无法实现真正的actor高亮**。
+- 只有 `BackgroundPlotter`（独立窗口）支持 actor picking，但不适合嵌入式GUI场景。
+- 推荐继续使用 `track_click_position` 实现对象属性显示。如需高亮功能，需等待 pyvistaqt 后续版本支持，或参与社区开发。
+- 相关代码见 [src/gui/main_window.py](mdc:src/gui/main_window.py) 的 `handle_pyvista_pick_position` 方法。
+
+**参考：**
+- [PyVistaQt官方API文档-QtInteractor](mdc:https:/qtdocs.pyvista.org/api_reference.html)
+- [PyVistaQt官方API文档-BackgroundPlotter](mdc:https:/qtdocs.pyvista.org/api_reference.html)
+
+
+
 
 
 

@@ -565,6 +565,9 @@ class MainWindow(QMainWindow):
         self.recorded_signals = None
         self.ground_truth_signal = None
         self.current_duration = 0.2
+        self.highlighted_actor = None  # 当前高亮的PyVista actor
+        self.original_actor_color = None  # 记录高亮前的颜色
+        self.picking_mode = None  # 'actor' 或 'position'
 
     def parse_vector_input(self, text_input, dimensions=3):
         parts = text_input.split(',')
@@ -820,7 +823,7 @@ class MainWindow(QMainWindow):
                 rt60=rt60_val
             )
             # For multi-source, ground_truth_signal needs clarification.
-            # Using the first source's signal as a reference for now.
+            # Using the first source\'s signal as a reference for now.
             if source_objects:
                 self.ground_truth_signal = source_objects[0].get_signal(self.current_duration)
             else:
@@ -830,34 +833,21 @@ class MainWindow(QMainWindow):
             if self.pv_plotter is not None and PYVISTA_AVAILABLE:
                 create_pyvista_scene(self.pv_plotter, 
                                      room_dim=room_dims_val, 
-                                     sources=source_positions_val, # This is a list of positions
+                                     sources=source_positions_val, 
                                      microphones=mic_positions_val)
-                # self.current_source_positions = source_positions_val # Replaced by self.sources_data
-                # self.current_mic_positions = mic_positions_val     # Replaced by self.mics_data (later)
-                
-                # Setup picking callback for PyVista QtInteractor
-                # The enable_actor_picking might be slightly different or might work directly
-                # on QtInteractor as it inherits from BasePlotter.
-                if hasattr(self.pv_plotter, 'track_click_position'):
-                    self.pv_plotter.track_click_position(callback=self.on_pick_pyvista)
+                # 自动选择拾取方式
+                if hasattr(self.pv_plotter, 'enable_actor_picking'):
+                    self.pv_plotter.clear_picking_callbacks()
+                    self.pv_plotter.enable_actor_picking(callback=self.handle_pyvista_pick, show_message=False, show_point=False)
+                    self.picking_mode = 'actor'
+                elif hasattr(self.pv_plotter, 'track_click_position'):
+                    self.pv_plotter.track_click_position(callback=self.handle_pyvista_pick_position)
+                    self.picking_mode = 'position'
+                    print("当前PyVista环境不支持actor picking，已自动切换为坐标拾取。建议升级pyvistaqt以获得更好体验。")
                 else:
-                    print("QtInteractor does not have track_click_position directly, check documentation or alternative.")
-                
-                # self.pv_plotter.app.processEvents() # Not typically needed for QtInteractor as it's part of the Qt app event loop
-                self.pv_plotter.update() # Ensure the scene is rendered
+                    print("PyVista不支持任何拾取方式。")
+                self.pv_plotter.update()
             else:
-                # Matplotlib fallback logic or warning if neither is available
-                # self.ax3d.clear()
-                # returned_figure, self.plotted_3d_elements = plot_room_3d(room_dim=room_dims_val, 
-                #              sources=source_positions_val, 
-                #              microphones=mic_positions_val, 
-                #              ax=self.ax3d)
-                # self.source_positions_cache = source_positions_val
-                # self.mic_positions_cache = mic_positions_val
-                # if hasattr(self, '_picker_cid') and self._picker_cid is not None:
-                #     self.canvas3d.mpl_disconnect(self._picker_cid)
-                # self._picker_cid = self.canvas3d.mpl_connect('pick_event', self.on_pick_3d)
-                # self.canvas3d.draw()
                 print("PyVista plotter not available for 3D scene.")
 
             # Update RIR Plot (e.g., for the first microphone and first source)
@@ -902,29 +892,128 @@ class MainWindow(QMainWindow):
             traceback.print_exc() # Print full traceback to console for debugging
             print(f"仿真/绘图错误: {e}")
 
-    def on_pick_pyvista(self, position):
-        info_text = "点击了3D场景中的空白区域。"
-        if position is None:
-            self.selected_object_info_label.setText(info_text)
+    def handle_pyvista_pick(self, picked_actor, *args):
+        """处理 PyVista 场景中的演员拾取事件，并实现高亮。"""
+        # 取消上一个高亮
+        if self.highlighted_actor is not None and self.original_actor_color is not None:
+            try:
+                self.highlighted_actor.GetProperty().SetColor(*self.original_actor_color)
+            except Exception:
+                pass
+            self.pv_plotter.update()
+            self.highlighted_actor = None
+            self.original_actor_color = None
+
+        if picked_actor is None or not hasattr(picked_actor, 'name'):
+            self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
             return
 
-        # Determine if it's a source or microphone based on the position
-        for s_data in self.sources_data:
-            if np.linalg.norm(np.array(s_data["position"]) - position) < 0.1:
-                # Assuming a tolerance of 0.1 meters for proximity
-                info_text = f"选中的声源:\n名称: {s_data.get('name')}\n位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n信号: {s_data.get('signal_type_display')}"
-                self.selected_object_info_label.setText(info_text)
-                return
-        for m_data in self.mics_data:
-            if np.linalg.norm(np.array(m_data["position"]) - position) < 0.1:
-                info_text = f"选中的麦克风:\n名称: {m_data.get('name')}\n位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n灵敏度: {m_data.get('sensitivity')}\n频响: {m_data.get('freq_response_type_display')}"
-                self.selected_object_info_label.setText(info_text)
-                return
-        # Could be the room or other elements if they were made pickable
-        info_text = f"选中了场景对象: {position}\n(非声源或麦克风)"
-        if hasattr(self.pv_plotter, 'center'):
-            info_text += f"\n中心: ({self.pv_plotter.center[0]:.2f}, {self.pv_plotter.center[1]:.2f}, {self.pv_plotter.center[2]:.2f})"
+        # 高亮当前actor
+        try:
+            prop = picked_actor.GetProperty()
+            self.original_actor_color = prop.GetColor()
+            prop.SetColor(1.0, 1.0, 0.0)  # 高亮色：黄色
+            self.pv_plotter.update()
+            self.highlighted_actor = picked_actor
+        except Exception:
+            self.original_actor_color = None
+            self.highlighted_actor = None
+
+        actor_name = picked_actor.name
+        info_text = f"选中了场景对象: {actor_name}\n(类型未知)"
+
+        if actor_name.startswith('source_'):
+            try:
+                idx_str = actor_name.split('_')[1]
+                idx = int(idx_str)
+                if 0 <= idx < len(self.sources_data):
+                    s_data = self.sources_data[idx]
+                    position = s_data.get("position", [0, 0, 0])
+                    info_text = (
+                        f"选中的声源:\n名称: {s_data.get('name')}\n"
+                        f"位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n"
+                        f"信号: {s_data.get('signal_type_display')}"
+                    )
+                else:
+                    info_text = f"选中了声源，但索引超出范围: {actor_name} (idx: {idx})"
+            except (IndexError, ValueError) as e:
+                info_text = f"选中了声源，但无法解析索引: {actor_name}, Error: {e}"
+
+        elif actor_name.startswith('mic_'):
+            try:
+                idx_str = actor_name.split('_')[1]
+                idx = int(idx_str)
+                if 0 <= idx < len(self.mics_data):
+                    m_data = self.mics_data[idx]
+                    position = m_data.get("position", [0, 0, 0])
+                    info_text = (
+                        f"选中的麦克风:\n名称: {m_data.get('name')}\n"
+                        f"位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n"
+                        f"灵敏度: {m_data.get('sensitivity')}\n"
+                        f"频响: {m_data.get('freq_response_type_display')}"
+                    )
+                else:
+                    info_text = f"选中了麦克风，但索引超出范围: {actor_name} (idx: {idx})"
+            except (IndexError, ValueError) as e:
+                info_text = f"选中了麦克风，但无法解析索引: {actor_name}, Error: {e}"
+
         self.selected_object_info_label.setText(info_text)
+
+    def handle_pyvista_pick_position(self, position):
+        """坐标拾取模式下，判断最近对象并显示属性。"""
+        # 取消上一个高亮（坐标拾取无法高亮actor，仅清除属性）
+        if self.highlighted_actor is not None and self.original_actor_color is not None:
+            try:
+                self.highlighted_actor.GetProperty().SetColor(*self.original_actor_color)
+            except Exception:
+                pass
+            self.pv_plotter.update()
+            self.highlighted_actor = None
+            self.original_actor_color = None
+
+        if position is None:
+            self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
+            return
+
+        # 判断最近的对象（声源/麦克风），并显示属性
+        min_dist = float('inf')
+        picked_type = None
+        picked_idx = -1
+        picked_pos = None
+        for i, s_data in enumerate(self.sources_data):
+            dist = np.linalg.norm(np.array(s_data["position"]) - position)
+            if dist < min_dist and dist < 0.15:
+                min_dist = dist
+                picked_type = 'source'
+                picked_idx = i
+                picked_pos = s_data["position"]
+        for i, m_data in enumerate(self.mics_data):
+            dist = np.linalg.norm(np.array(m_data["position"]) - position)
+            if dist < min_dist and dist < 0.12:
+                min_dist = dist
+                picked_type = 'mic'
+                picked_idx = i
+                picked_pos = m_data["position"]
+
+        if picked_type == 'source':
+            s_data = self.sources_data[picked_idx]
+            info_text = (
+                f"选中的声源:\n名称: {s_data.get('name')}\n"
+                f"位置: ({picked_pos[0]:.2f}, {picked_pos[1]:.2f}, {picked_pos[2]:.2f}) m\n"
+                f"信号: {s_data.get('signal_type_display')}"
+            )
+            self.selected_object_info_label.setText(info_text)
+        elif picked_type == 'mic':
+            m_data = self.mics_data[picked_idx]
+            info_text = (
+                f"选中的麦克风:\n名称: {m_data.get('name')}\n"
+                f"位置: ({picked_pos[0]:.2f}, {picked_pos[1]:.2f}, {picked_pos[2]:.2f}) m\n"
+                f"灵敏度: {m_data.get('sensitivity')}\n"
+                f"频响: {m_data.get('freq_response_type_display')}"
+            )
+            self.selected_object_info_label.setText(info_text)
+        else:
+            self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
 
     def save_config(self):
         config = {
