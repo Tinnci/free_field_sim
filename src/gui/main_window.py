@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Slot
 import json
+import os
 
 # Matplotlib imports for embedding
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -378,6 +379,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("交互式声学仿真工具 v0.4")
         self.setGeometry(100, 100, 1300, 850)
 
+        # 先初始化数据结构
+        self.sources_data = []
+        self.mics_data = []
+
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         main_layout = QHBoxLayout(main_widget)
@@ -423,7 +428,17 @@ class MainWindow(QMainWindow):
         sources_group.setLayout(sources_layout)
         left_panel_layout.addWidget(sources_group)
         # Add default source
-        self.sources_list_widget.addItem("2,3,1.5")
+        default_source = {
+            "name": "Default Source",
+            "position": [2.0, 3.0, 1.5],
+            "position_str": "2,3,1.5",
+            "signal_type_display": "正弦波组合",
+            "signal_type": "正弦波组合",
+            "signal_params": {"components": [{"freq": 440, "amp": 1.0}]}
+        }
+        self.sources_data.append(default_source)
+        display_text = f"{default_source['name']}: {default_source['position_str']} ({default_source['signal_type_display']})"
+        self.sources_list_widget.addItem(display_text)
 
         # Microphones Group
         mics_group = QGroupBox("麦克风管理")
@@ -445,8 +460,19 @@ class MainWindow(QMainWindow):
         mics_group.setLayout(mics_layout)
         left_panel_layout.addWidget(mics_group)
         # Add default microphones
-        self.mics_list_widget.addItem("4,2.5,1.5")
-        self.mics_list_widget.addItem("5,3.5,1.5")
+        default_mic = {
+            "name": "Default Mic",
+            "position": [4.0, 2.5, 1.5],
+            "position_str": "4,2.5,1.5",
+            "sensitivity": 1.0,
+            "noise_std": 0.001,
+            "freq_response_type_display": "无",
+            "freq_response_type": "无",
+            "freq_response_params": {}
+        }
+        self.mics_data.append(default_mic)
+        display_text = f"{default_mic['name']}: {default_mic['position_str']} ({default_mic['freq_response_type_display']})"
+        self.mics_list_widget.addItem(display_text)
 
         # Selected Object Info Group
         selected_info_group = QGroupBox("选中对象信息")
@@ -493,8 +519,8 @@ class MainWindow(QMainWindow):
             self.pv_plotter = QtInteractor(self.tab_3d, auto_update=True)
             # self.pv_plotter.set_background('lightgray') # Set background if desired
             self.pv_plotter.add_camera_orientation_widget(True) # 添加坐标轴方向指示
-            self.pv_plotter.add_bounding_box() # 添加边界框控制
-            # self.pv_plotter.show_grid() # 显示网格，如果需要的话
+            self.pv_plotter.add_bounding_box() # 更正: 添加边界框控制应为add_bounding_box()
+            self.pv_plotter.show_grid() # 显示网格，如果需要的话
 
             self.tab_3d_layout.addWidget(self.pv_plotter) # Add QtInteractor widget directly
         else:
@@ -539,8 +565,6 @@ class MainWindow(QMainWindow):
         self.recorded_signals = None
         self.ground_truth_signal = None
         self.current_duration = 0.2
-        self.sources_data = [] # List of dicts, e.g. {name, position, signal_type, signal_params}
-        self.mics_data = []    # List of dicts for microphones
 
     def parse_vector_input(self, text_input, dimensions=3):
         parts = text_input.split(',')
@@ -642,18 +666,17 @@ class MainWindow(QMainWindow):
         if self.sources_list_widget.count() == 0: # Ensure at least one source if all are removed
             QMessageBox.information(self, "提示", "至少需要一个声源。已自动添加默认声源。")
             # Add a default source to self.sources_data and list_widget if needed
-            default_pos_str = "2,3,1.5"
-            default_name = "Default Source"
-            default_signal_type = "正弦波组合"
-            self.sources_list_widget.addItem(f"{default_name}: {default_pos_str} ({default_signal_type})")
-            self.sources_data.append({
-                "name": default_name, 
-                "position": self.parse_vector_input(default_pos_str), 
-                "position_str": default_pos_str,
-                "signal_type_display": default_signal_type,
-                "signal_type": default_signal_type, 
-                "signal_params": {"freqs":[440],"amps":[1.0]} # Example default params
-            })
+            default_source = {
+                "name": "Default Source",
+                "position": [2.0, 3.0, 1.5],
+                "position_str": "2,3,1.5",
+                "signal_type_display": "正弦波组合",
+                "signal_type": "正弦波组合",
+                "signal_params": {"components": [{"freq": 440, "amp": 1.0}]}
+            }
+            self.sources_data.append(default_source)
+            display_text = f"{default_source['name']}: {default_source['position_str']} ({default_source['signal_type_display']})"
+            self.sources_list_widget.addItem(display_text)
 
     def add_mic(self):
         dialog = MicrophonePropertiesDialog(self)
@@ -722,20 +745,19 @@ class MainWindow(QMainWindow):
             
         if self.mics_list_widget.count() == 0: 
             QMessageBox.information(self, "提示", "至少需要一个麦克风。已自动添加默认麦克风。")
-            default_pos_str = "4,2.5,1.5"
-            default_name = "Default Mic"
-            default_freq_resp_type = "无"
-            self.mics_list_widget.addItem(f"{default_name}: {default_pos_str} ({default_freq_resp_type})")
-            self.mics_data.append({
-                "name": default_name, 
-                "position": self.parse_vector_input(default_pos_str), 
-                "position_str": default_pos_str,
+            default_mic = {
+                "name": "Default Mic",
+                "position": [4.0, 2.5, 1.5],
+                "position_str": "4,2.5,1.5",
                 "sensitivity": 1.0,
                 "noise_std": 0.001,
-                "freq_response_type_display": default_freq_resp_type,
-                "freq_response_type": default_freq_resp_type, 
+                "freq_response_type_display": "无",
+                "freq_response_type": "无",
                 "freq_response_params": {}
-            })
+            }
+            self.mics_data.append(default_mic)
+            display_text = f"{default_mic['name']}: {default_mic['position_str']} ({default_mic['freq_response_type_display']})"
+            self.mics_list_widget.addItem(display_text)
 
     def run_simulation_and_update_plots(self):
         try:
@@ -765,20 +787,20 @@ class MainWindow(QMainWindow):
                  QMessageBox.warning(self, "配置错误", "没有定义声源。")
                  return
             
-            primary_source_data = self.sources_data[0]
-            # primary_source_pos_val = primary_source_data["position"] # Already have this if needed
+            # Create SoundSource instances from self.sources_data
+            source_objects = []
+            for src_data in self.sources_data:
+                source_objects.append(SoundSource(
+                    position=np.array(src_data["position"]),
+                    name=src_data.get("name", f"Source_DefaultName"),
+                    signal_type=src_data.get("signal_type", "白噪声"),
+                    signal_params=src_data.get("signal_params", {})
+                ))
             
-            # Create SoundSource instance using the detailed parameters from primary_source_data
-            source_obj = SoundSource(
-                position=np.array(primary_source_data["position"]),
-                name=primary_source_data.get("name", f"Source_DefaultName"),
-                signal_type=primary_source_data.get("signal_type", "白噪声"), # Default to whitenoise if not specified
-                signal_params=primary_source_data.get("signal_params", {})
-            )
-            
-            # The old hardcoded source_signal_func is no longer needed here.
-            # source_obj will generate its signal via its get_signal method based on its type and params.
-            
+            if not source_objects: # Should be redundant if self.sources_data is checked
+                QMessageBox.warning(self, "配置错误", "未能创建声源对象。")
+                return
+
             mic_objects = []
             for i, m_data in enumerate(self.mics_data):
                 mic_objects.append(Microphone(
@@ -792,12 +814,17 @@ class MainWindow(QMainWindow):
 
             self.recorded_signals, self.simulation_room = simulate_with_pyroomacoustics(
                 room_dim=room_dims_val, 
-                source_obj=source_obj, 
+                source_objects=source_objects, # Pass list of source objects
                 mic_objects=mic_objects, 
                 duration=self.current_duration, 
                 rt60=rt60_val
             )
-            self.ground_truth_signal = source_obj.get_signal(self.current_duration)
+            # For multi-source, ground_truth_signal needs clarification.
+            # Using the first source's signal as a reference for now.
+            if source_objects:
+                self.ground_truth_signal = source_objects[0].get_signal(self.current_duration)
+            else:
+                self.ground_truth_signal = None # Should not happen if checks above are done
             
             # Update 3D Plot with PyVista
             if self.pv_plotter is not None and PYVISTA_AVAILABLE:
@@ -811,10 +838,10 @@ class MainWindow(QMainWindow):
                 # Setup picking callback for PyVista QtInteractor
                 # The enable_actor_picking might be slightly different or might work directly
                 # on QtInteractor as it inherits from BasePlotter.
-                if hasattr(self.pv_plotter, 'enable_actor_picking'):
-                    self.pv_plotter.enable_actor_picking(callback=self.on_pick_pyvista, show_message=False)
+                if hasattr(self.pv_plotter, 'track_click_position'):
+                    self.pv_plotter.track_click_position(callback=self.on_pick_pyvista)
                 else:
-                    print("QtInteractor does not have enable_actor_picking directly, check documentation or alternative.")
+                    print("QtInteractor does not have track_click_position directly, check documentation or alternative.")
                 
                 # self.pv_plotter.app.processEvents() # Not typically needed for QtInteractor as it's part of the Qt app event loop
                 self.pv_plotter.update() # Ensure the scene is rendered
@@ -835,11 +862,13 @@ class MainWindow(QMainWindow):
 
             # Update RIR Plot (e.g., for the first microphone and first source)
             # Note: RIR is typically source-mic pair specific.
-            # If multiple sources are active in pyroomacoustics, RIR handling becomes more complex.
-            # Current simulation uses one source signal, so RIR is from that source.
-            if self.simulation_room.rir and self.simulation_room.rir[0] and self.simulation_room.rir[0][0] is not None:
+            # With multiple sources, room.rir is a list of RIRs (one per source).
+            # Plot RIR from first source to first mic for now.
+            if self.simulation_room.rir and len(self.simulation_room.rir) > 0 and \
+               self.simulation_room.rir[0] and len(self.simulation_room.rir[0]) > 0 and \
+               self.simulation_room.rir[0][0] is not None:
                 plot_rir_embed(self.ax_rir, self.simulation_room.rir[0][0], SAMPLING_RATE, 
-                               title=f"RIR ({mic_objects[0].name} vs {source_obj.name})")
+                               title=f"RIR ({mic_objects[0].name} vs {source_objects[0].name})")
             else:
                 self.ax_rir.clear()
                 self.ax_rir.text(0.5, 0.5, '无RIR数据或仿真未包含RIR', horizontalalignment='center', verticalalignment='center')
@@ -873,49 +902,28 @@ class MainWindow(QMainWindow):
             traceback.print_exc() # Print full traceback to console for debugging
             print(f"仿真/绘图错误: {e}")
 
-    def on_pick_pyvista(self, picked_actor, *args):
+    def on_pick_pyvista(self, position):
         info_text = "点击了3D场景中的空白区域。"
-        if picked_actor is None:
+        if position is None:
             self.selected_object_info_label.setText(info_text)
             return
 
-        actor_name = picked_actor.name if hasattr(picked_actor, 'name') else "Unknown Actor"
-        
-        # Determine if it's a source or microphone based on the name given in create_pyvista_scene
-        if actor_name.startswith("source_"):
-            try:
-                idx = int(actor_name.split('_')[1])
-                # if idx < len(self.current_source_positions): # old cache
-                if idx < len(self.sources_data):
-                    # pos = self.current_source_positions[idx]
-                    s_data = self.sources_data[idx]
-                    pos = s_data["position"]
-                    info_text = f"选中的声源:\n名称: {s_data.get('name')}\n位置: ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}) m\n信号: {s_data.get('signal_type_display')}"
-                    # TODO: Display s_data['signal_params'] as well
-                else:
-                    info_text = f"选中的声源索引 ({idx}) 超出范围。"
-            except (IndexError, ValueError) as e:
-                info_text = f"解析声源名称 '{actor_name}' 出错: {e}"
-
-        elif actor_name.startswith("mic_"):
-            try:
-                idx = int(actor_name.split('_')[1])
-                if idx < len(self.mics_data):
-                    # pos = self.mics_data[idx]["position"]
-                    m_data = self.mics_data[idx]
-                    pos = m_data["position"]
-                    info_text = f"选中的麦克风:\n名称: {m_data.get('name')}\n位置: ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}) m\n灵敏度: {m_data.get('sensitivity')}\n频响: {m_data.get('freq_response_type_display')}"
-                    # TODO: Display freq_response_params
-                else:
-                    info_text = f"选中的麦克风索引 ({idx}) 超出范围。"
-            except (IndexError, ValueError) as e:
-                info_text = f"解析麦克风名称 '{actor_name}' 出错: {e}"
-        else:
-            # Could be the room or other elements if they were made pickable
-            info_text = f"选中了场景对象: {actor_name}\n(非声源或麦克风)"
-            if hasattr(picked_actor, 'center'):
-                 info_text += f"\n中心: ({picked_actor.center[0]:.2f}, {picked_actor.center[1]:.2f}, {picked_actor.center[2]:.2f})"
-
+        # Determine if it's a source or microphone based on the position
+        for s_data in self.sources_data:
+            if np.linalg.norm(np.array(s_data["position"]) - position) < 0.1:
+                # Assuming a tolerance of 0.1 meters for proximity
+                info_text = f"选中的声源:\n名称: {s_data.get('name')}\n位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n信号: {s_data.get('signal_type_display')}"
+                self.selected_object_info_label.setText(info_text)
+                return
+        for m_data in self.mics_data:
+            if np.linalg.norm(np.array(m_data["position"]) - position) < 0.1:
+                info_text = f"选中的麦克风:\n名称: {m_data.get('name')}\n位置: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f}) m\n灵敏度: {m_data.get('sensitivity')}\n频响: {m_data.get('freq_response_type_display')}"
+                self.selected_object_info_label.setText(info_text)
+                return
+        # Could be the room or other elements if they were made pickable
+        info_text = f"选中了场景对象: {position}\n(非声源或麦克风)"
+        if hasattr(self.pv_plotter, 'center'):
+            info_text += f"\n中心: ({self.pv_plotter.center[0]:.2f}, {self.pv_plotter.center[1]:.2f}, {self.pv_plotter.center[2]:.2f})"
         self.selected_object_info_label.setText(info_text)
 
     def save_config(self):
@@ -926,18 +934,13 @@ class MainWindow(QMainWindow):
             "sources_data": self.sources_data, 
             "mics_data": self.mics_data # Save the full mic data objects
         }
-        # 转换字符串为数值列表 (部分转换保留，部分在加载时处理，或在sources_data中已为数值)
         config["room_dim"] = [float(x) for x in config["room_dim"].split(",")]
         config["rt60"] = float(config["rt60"])
         config["duration"] = float(config["duration"])
-        # sources_data should already have positions as lists of floats.
-        # signal_params might need specific handling if they are not JSON serializable by default.
-        
-        # Temporary handling for microphone positions until mics_data is implemented
-        # config["microphones_str"] = config.pop("microphones") 
-        # config["microphones"] = [[float(x) for x in m.split(",")] for m in config["microphones_str"]]
-
-        file_path, _ = QFileDialog.getSaveFileName(self, "保存配置", "", "JSON Files (*.json)")
+        # 默认保存目录
+        default_config_dir = os.path.join(os.path.dirname(__file__), '../../configs')
+        os.makedirs(default_config_dir, exist_ok=True)
+        file_path, _ = QFileDialog.getSaveFileName(self, "保存配置", default_config_dir, "JSON Files (*.json)")
         if file_path:
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
@@ -947,25 +950,24 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "保存失败", f"保存配置时出错: {e}")
 
     def load_config(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "加载配置", "", "JSON Files (*.json)")
+        # 默认加载目录
+        default_config_dir = os.path.join(os.path.dirname(__file__), '../../configs')
+        os.makedirs(default_config_dir, exist_ok=True)
+        file_path, _ = QFileDialog.getOpenFileName(self, "加载配置", default_config_dir, "JSON Files (*.json)")
         if file_path:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                # 填充界面
                 self.room_dims_input.setText(",".join(str(x) for x in config["room_dim"]))
                 self.rt60_input.setText(str(config["rt60"]))
                 self.duration_input.setText(str(config["duration"]))
-                
                 self.sources_list_widget.clear()
                 self.sources_data = config.get("sources_data", [])
                 for s_data in self.sources_data:
-                    # Ensure position_str exists for display if position is already parsed
                     if "position" in s_data and "position_str" not in s_data:
                         s_data["position_str"] = ",".join(map(str, s_data["position"]))
                     display_text = f"{s_data.get('name', 'Source')}: {s_data.get('position_str', 'N/A')} ({s_data.get('signal_type_display', 'N/A')})"
                     self.sources_list_widget.addItem(display_text)
-
                 self.mics_list_widget.clear()
                 self.mics_data = config.get("mics_data", [])
                 for m_data in self.mics_data:
@@ -973,16 +975,6 @@ class MainWindow(QMainWindow):
                         m_data["position_str"] = ",".join(map(str, m_data["position"]))
                     display_text = f"{m_data.get('name', 'Mic')}: {m_data.get('position_str', 'N/A')} ({m_data.get('freq_response_type_display', 'N/A')})"
                     self.mics_list_widget.addItem(display_text)
-                
-                # Old microphone loading logic (commented out as mics_data is now primary)
-                # loaded_mics_pos_str = config.get("microphones_str", []) 
-                # if not loaded_mics_pos_str and "microphones" in config and isinstance(config["microphones"][0], list):
-                #      for m_pos_list in config["microphones"]:
-                #          self.mics_list_widget.addItem(",".join(map(str, m_pos_list)))
-                # else: 
-                #     for m_str in loaded_mics_pos_str:
-                #         self.mics_list_widget.addItem(m_str)
-
                 QMessageBox.information(self, "成功", f"配置已加载: {file_path}")
             except Exception as e:
                 QMessageBox.critical(self, "加载失败", f"加载配置时出错: {e}")

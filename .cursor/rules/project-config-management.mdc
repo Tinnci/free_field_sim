@@ -12,11 +12,12 @@ alwaysApply: false
   "room_dim": [6, 5, 3],
   "rt60": 0.3,
   "duration": 0.2,
-  "sources": [[2, 3, 1.5], [1, 1, 1]],
-  "microphones": [[4, 2.5, 1.5], [5, 3.5, 1.5]]
+  "sources_data": [ {"name": ..., "position": ..., "signal_type": ..., ...} ],
+  "mics_data": [ {"name": ..., "position": ..., "sensitivity": ..., ...} ]
 }
 ```
 - 相关实现见 [src/gui/main_window.py](mdc:src/gui/main_window.py) 的 `save_config` 和 `load_config` 方法。
 - 支持通过GUI按钮进行保存/加载，自动填充界面。
 - 后续可扩展更多参数（如声源信号类型、麦克风灵敏度等），建议保持向后兼容。
 - 配置文件建议使用UTF-8编码，文件扩展名为`.json`。
+- **配置结构已支持详细对象参数，兼容性良好，便于后续扩展。**

@@ -134,18 +134,27 @@ class Microphone:
         final_signal = responded_signal + noise
         return final_signal
 
-def simulate_with_pyroomacoustics(room_dim, source_obj, mic_objects, duration, rt60=None, material_absorption=0.5):
-    source_signal_data = source_obj.get_signal(duration)
+def simulate_with_pyroomacoustics(room_dim, source_objects: list[SoundSource], mic_objects: list[Microphone], duration, rt60=None, material_absorption=0.5):
+    # source_signal_data = source_obj.get_signal(duration) # Old: single source
 
     if rt60 is not None:
         e_absorption, max_order = pra.inverse_sabine(rt60, room_dim)
         room = pra.ShoeBox(room_dim, fs=SAMPLING_RATE, materials=pra.Material(e_absorption), max_order=max_order)
     else:
         m = pra.Material(energy_absorption=material_absorption, scattering_coefficient=0.1)
-        room = pra.ShoeBox(room_dim, fs=SAMPLING_RATE, materials=m, max_order=3 if len(room_dim)==2 else 17)
+        # Determine max_order based on pyroomacoustics typical behavior for ShoeBox
+        # max_order=3 for 2D, or a higher value like 17 for 3D if not specified by rt60
+        default_max_order = 3 if len(room_dim) == 2 else 17 
+        room = pra.ShoeBox(room_dim, fs=SAMPLING_RATE, materials=m, max_order=default_max_order)
 
-    source_pos_pra = source_obj.position[:len(room_dim)]
-    room.add_source(source_pos_pra, signal=source_signal_data)
+    # Add all sources to the room
+    if not source_objects:
+        raise ValueError("At least one sound source must be provided.")
+        
+    for src_obj in source_objects:
+        source_signal_data = src_obj.get_signal(duration, sampling_rate=SAMPLING_RATE)
+        source_pos_pra = src_obj.position[:len(room_dim)] # Use appropriate dimensions
+        room.add_source(source_pos_pra, signal=source_signal_data) # 移除 name 参数，兼容pyroomacoustics
 
     mic_positions_pra = []
     for mic in mic_objects:

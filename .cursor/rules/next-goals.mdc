@@ -11,52 +11,29 @@ alwaysApply: false
   - **已迁移3D场景至 PyVista (`QtInteractor`)，实现嵌入式GUI显示和基本对象拾取。**
   - GUI支持动态增删声源/麦克风（目前仅配置位置）。
   - 支持仿真配置的保存与加载 (JSON格式，包含房间/声源/麦克风位置等基础参数)。
+  - **声源参数化、麦克风参数化、PyVista基础交互已实现。**
 
-## 下一步详细计划
+## 下一步详细计划（2024.6）
 
-**阶段一：增强对象参数配置与交互 (核心功能完善)**
+### 1. 多声源信号同时仿真（核心重构，最高优先级）
+- 支持多个声源各自独立信号并在仿真中叠加。
+- 修改 `simulate_with_pyroomacoustics`，支持多个 `SoundSource` 实例。
+- GUI允许为每个声源配置不同信号类型和参数。
+- 结果展示和评估适配多声源情形。
 
-1.  **声源参数化 (Source Parameterization)**
-    *   **目标**: 允许用户为每个声源配置更详细的参数（名称、信号类型、信号参数）。
-    *   **GUI (`main_window.py`)**: 修改"添加/编辑声源"对话框；`sources_list_widget` 显示更丰富信息；更新3D拾取信息。
-    *   **数据结构 (`main_window.py`)**: `self.sources_data` 存储声源对象/字典列表。
-    *   **仿真 (`simulation.py`, `main_window.py`)**: 修改 `SoundSource` 类以处理新参数和信号生成 (正弦波、噪声、脉冲、文件加载)；`run_simulation_and_update_plots` 创建参数化的 `SoundSource` 对象。
-        *   **初期注意**: 仿真核心仍暂定使用第一个声源的信号，或所有声源使用相同信号。
-    *   **配置管理 (`main_window.py`)**: 更新 `save_config`/`load_config`。
+### 2. 配置管理体验优化
+- 配置文件默认保存/加载路径（如 `configs/` 目录，自动创建）。
+- 配置文件格式升级：分层字典结构+版本号，兼容未来扩展。
+- 读取时保留未知字段，支持向后/向前兼容。
+- 增加"最近使用配置"或"快速保存/加载"功能（可选）。
 
-2.  **麦克风参数化 (Microphone Parameterization)**
-    *   **目标**: 允许用户为每个麦克风配置更详细的参数（名称、灵敏度、自噪声、频响类型及参数）。
-    *   **GUI (`main_window.py`)**: 修改"添加/编辑麦克风"对话框；`mics_list_widget` 显示更丰富信息；更新3D拾取信息。
-    *   **数据结构 (`main_window.py`)**: `self.mics_data` 存储麦克风对象/字典列表。
-    *   **仿真 (`simulation.py`, `main_window.py`)**: 修改 `Microphone` 类以处理新参数；`run_simulation_and_update_plots` 创建参数化的 `Microphone` 对象。
-    *   **配置管理 (`main_window.py`)**: 更新 `save_config`/`load_config`。
+### 3. 3D可视化与用户体验增强
+- 3D视图对象高亮、属性面板、视角重置等。
+- 优化3D交互体验。
 
-3.  **PyVista 视图交互增强 (初步)**
-    *   **目标**: 提升3D视图用户体验。
-    *   **功能**: 
-        *   添加PyVista标准工具栏到嵌入的 `QtInteractor` ([src/gui/main_window.py](mdc:src/gui/main_window.py))。
-        *   (可选) 鼠标悬停对象高亮。
-
-**阶段二：仿真核心与可视化扩展**
-
-4.  **支持多声源信号同时仿真 (核心重构)**
-    *   **目标**: 多个声源同时发出各自配置的信号，并在仿真中叠加。
-    *   **仿真 (`simulation.py`)**: 修改 `simulate_with_pyroomacoustics` 以多次调用 `room.add_source()` 或使用 `pyroomacoustics` 的多源API。
-    *   **结果解读**: 注意RIR和接收信号的含义。
-
-5.  **高级3D可视化 (PyVista特性利用)**
-    *   **目标**: 展示更丰富的声学信息。
-    *   **示例**: 声压级分布图 (SPL Maps)，波前传播动画。
-
-**阶段三：用户体验与健壮性**
-
-6.  **输入校验与错误处理**
-    *   对所有用户输入进行更严格的校验。
-    *   提供更友好的错误提示和用户反馈。
-
-7.  **界面优化与文档**
-    *   根据使用反馈调整GUI布局和交互流程。
-    *   添加代码注释和用户文档。
+### 4. 持续完善输入校验与文档
+- 更严格的输入校验与错误提示。
+- 持续完善用户文档和开发注释。
 
 ---
 

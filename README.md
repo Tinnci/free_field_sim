@@ -40,8 +40,8 @@ free_field_sim/
 ## 快速开始
 1. 安装依赖：
    ```bash
-   pip install -r requirements.txt
-   # 或使用 pyproject.toml/pdm/poetry 等工具
+   uv sync
+   # 或使用 pip/pyproject.toml/pdm/poetry 等工具
    ```
 2. 运行主程序：
    ```bash

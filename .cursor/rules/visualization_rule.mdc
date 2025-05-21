@@ -13,11 +13,12 @@ files: ["[src/visualization.py](mdc:src/visualization.py)"]
 
 主要功能包括在给定的 Matplotlib Axes 对象上绘制：
 - `plot_rir_embed`: 绘制房间冲激响应 (RIR)。
-- `plot_signal_time_domain_embed`: 绘制单个时域信号。
-- `plot_signals_time_domain_embed`: 绘制多个时域信号，包括真实信号和麦克风录制的信号。
-- `plot_signal_frequency_domain_embed`: 绘制单个频域信号 (FFT)。
-- `plot_signals_frequency_domain_embed`: 绘制多个频域信号 (FFT)。
+- `plot_signal_time_domain_embed`/`plot_signals_time_domain_embed`: 绘制单个或多个时域信号。
+- `plot_signal_frequency_domain_embed`/`plot_signals_frequency_domain_embed`: 绘制单个或多个频域信号 (FFT)。
+- **2D可视化已支持RIR、时域、频域信号的嵌入式展示。**
 
 这些函数通常接收 `ax` (Matplotlib Axes 对象)、信号数据、采样率等参数，并更新 `ax` 上的绘图。
 该文件还保留了一个原始的 `plot_signals_and_room` 函数，用于非GUI环境或未来的重构，该函数会创建并显示多个独立的图形窗口。
+
+
 
