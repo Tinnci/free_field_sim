@@ -25,6 +25,10 @@ files: ["[src/visualization.py](mdc:src/visualization.py)"]
 - `plot_signals_and_room` 等函数的采样率参数应始终从 [src/simulation.py](mdc:src/simulation.py) 统一获取，避免 hardcode。
 - 多声源仿真时，ground_truth_signal 当前仅取第一个声源，后续可扩展为多源混合或多源评估。
 
+- 多声源仿真时，RIR默认展示第一个声源与第一个麦克风的结果，后续可扩展为多源多麦克风选择。
+
+
+
 
 
 

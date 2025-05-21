@@ -3,7 +3,7 @@ import numpy as np
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QGridLayout, QGroupBox, QMessageBox,
-    QTabWidget, QListWidget, QListWidgetItem, QInputDialog, QDialog, QDialogButtonBox,
+    QTabWidget, QListWidget, QListWidgetItem, QDialog, QDialogButtonBox,
     QSizePolicy, QFileDialog, QComboBox, QFormLayout,
     QDoubleSpinBox # Added for numeric input
 )
@@ -137,7 +137,8 @@ class SourcePropertiesDialog(QDialog):
             self.name_input.setText(source_data.get("name", ""))
             self.position_input.setText(source_data.get("position_str", ",".join(map(str, source_data.get("position", [])))))
             idx = self.signal_type_combo.findText(source_data.get("signal_type_display", "正弦波组合"))
-            if idx != -1: self.signal_type_combo.setCurrentIndex(idx)
+            if idx != -1:
+                self.signal_type_combo.setCurrentIndex(idx)
             # update_signal_params_ui will be called due to setCurrentIndex if index changes,
             # but we need to ensure it populates with existing data if type is already correct.
             # So, call it explicitly after setting type, and pass existing params.
@@ -222,7 +223,8 @@ class SourcePropertiesDialog(QDialog):
     @Slot()
     def remove_sine_component(self):
         selected_items = self.sine_components_list.selectedItems()
-        if not selected_items: return
+        if not selected_items:
+            return
         for item in selected_items:
             self.sine_components_list.takeItem(self.sine_components_list.row(item))
 
@@ -305,8 +307,9 @@ class MicrophonePropertiesDialog(QDialog):
             self.sensitivity_input.setValue(mic_data.get("sensitivity", 1.0))
             self.noise_std_input.setValue(mic_data.get("noise_std", 0.001))
             idx = self.freq_response_type_combo.findText(mic_data.get("freq_response_type_display", "无"))
-            if idx != -1: self.freq_response_type_combo.setCurrentIndex(idx)
-            self.update_freq_params_ui(self.freq_response_type_combo.currentIndex(), existing_params=mic_data.get("freq_response_params"))
+            if idx != -1:
+                self.freq_response_type_combo.setCurrentIndex(idx)
+                self.update_freq_params_ui(self.freq_response_type_combo.currentIndex(), existing_params=mic_data.get("freq_response_params"))
         else:
             self.update_freq_params_ui(self.freq_response_type_combo.currentIndex())
 
@@ -482,6 +485,13 @@ class MainWindow(QMainWindow):
         self.selected_object_info_label.setAlignment(Qt.AlignTop)
         self.selected_object_info_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         selected_info_layout.addWidget(self.selected_object_info_label)
+
+        # 新增：编辑选中对象按钮
+        self.edit_picked_object_button = QPushButton("编辑选中对象")
+        self.edit_picked_object_button.setEnabled(False) # 初始禁用
+        self.edit_picked_object_button.clicked.connect(self.edit_picked_object_from_panel) # 连接到新的处理函数
+        selected_info_layout.addWidget(self.edit_picked_object_button)
+
         selected_info_group.setLayout(selected_info_layout)
         left_panel_layout.addWidget(selected_info_group)
 
@@ -523,6 +533,11 @@ class MainWindow(QMainWindow):
             self.pv_plotter.show_grid() # 显示网格，如果需要的话
 
             self.tab_3d_layout.addWidget(self.pv_plotter) # Add QtInteractor widget directly
+
+            # 新增：重置视角按钮
+            self.reset_view_button = QPushButton("重置视角")
+            self.reset_view_button.clicked.connect(self.reset_pyvista_camera)
+            self.tab_3d_layout.addWidget(self.reset_view_button) # 将按钮添加到3D视图的布局中
         else:
             # Fallback or placeholder if PyVista is not available
             fallback_label = QLabel("PyVista 3D Plotter (QtInteractor) 不可用。\n请安装 PyVista 和 pyvistaqt.")
@@ -568,6 +583,18 @@ class MainWindow(QMainWindow):
         self.highlighted_actor = None  # 当前高亮的PyVista actor
         self.original_actor_color = None  # 记录高亮前的颜色
         self.picking_mode = None  # 'actor' 或 'position'
+        self.picked_object_type = None # 'source' or 'mic'
+        self.picked_object_index = -1
+
+    @Slot()
+    def reset_pyvista_camera(self):
+        if self.pv_plotter:
+            # 设置一个预定义的、较好的初始视角
+            self.pv_plotter.camera_position = 'iso' 
+            self.pv_plotter.camera.azimuth = -45 # 调整水平角度
+            self.pv_plotter.camera.elevation = 20  # 调整俯仰角度
+            self.pv_plotter.reset_camera() # 应用这些设置并可能调整缩放以适应场景
+            self.pv_plotter.update()
 
     def parse_vector_input(self, text_input, dimensions=3):
         parts = text_input.split(',')
@@ -795,7 +822,7 @@ class MainWindow(QMainWindow):
             for src_data in self.sources_data:
                 source_objects.append(SoundSource(
                     position=np.array(src_data["position"]),
-                    name=src_data.get("name", f"Source_DefaultName"),
+                    name=src_data.get("name", "Source_DefaultName"),
                     signal_type=src_data.get("signal_type", "白噪声"),
                     signal_params=src_data.get("signal_params", {})
                 ))
@@ -854,14 +881,19 @@ class MainWindow(QMainWindow):
             # Note: RIR is typically source-mic pair specific.
             # With multiple sources, room.rir is a list of RIRs (one per source).
             # Plot RIR from first source to first mic for now.
-            if self.simulation_room.rir and len(self.simulation_room.rir) > 0 and \
-               self.simulation_room.rir[0] and len(self.simulation_room.rir[0]) > 0 and \
-               self.simulation_room.rir[0][0] is not None:
-                plot_rir_embed(self.ax_rir, self.simulation_room.rir[0][0], SAMPLING_RATE, 
-                               title=f"RIR ({mic_objects[0].name} vs {source_objects[0].name})")
+            if (self.simulation_room.rir and
+                len(self.simulation_room.rir) > 0 and
+                source_objects and mic_objects and
+                len(self.simulation_room.rir[0]) > 0 and
+                self.simulation_room.rir[0][0] is not None):
+                # Ensure we have objects to get names from for the title
+                title_mic_name = mic_objects[0].name if mic_objects else "Mic 0"
+                title_src_name = source_objects[0].name if source_objects else "Source 0"
+                plot_rir_embed(self.ax_rir, self.simulation_room.rir[0][0], SAMPLING_RATE,
+                               title=f"RIR ({title_mic_name} vs {title_src_name})")
             else:
                 self.ax_rir.clear()
-                self.ax_rir.text(0.5, 0.5, '无RIR数据或仿真未包含RIR', horizontalalignment='center', verticalalignment='center')
+                self.ax_rir.text(0.5, 0.5, '无RIR数据或必要对象信息缺失', horizontalalignment='center', verticalalignment='center')
             self.canvas_rir.draw()
 
             # Update Time Domain Plot
@@ -973,88 +1005,56 @@ class MainWindow(QMainWindow):
 
         if position is None:
             self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
-            return
+            self.edit_picked_object_button.setEnabled(False) # 禁用按钮
+            self.picked_object_type = None
+            self.picked_object_index = -1
+            # self.selected_object_info_label.mousePressEvent = None
 
-        # 判断最近的对象（声源/麦克风），并显示属性
-        min_dist = float('inf')
-        picked_type = None
-        picked_idx = -1
-        picked_pos = None
-        for i, s_data in enumerate(self.sources_data):
-            dist = np.linalg.norm(np.array(s_data["position"]) - position)
-            if dist < min_dist and dist < 0.15:
-                min_dist = dist
-                picked_type = 'source'
-                picked_idx = i
-                picked_pos = s_data["position"]
-        for i, m_data in enumerate(self.mics_data):
-            dist = np.linalg.norm(np.array(m_data["position"]) - position)
-            if dist < min_dist and dist < 0.12:
-                min_dist = dist
-                picked_type = 'mic'
-                picked_idx = i
-                picked_pos = m_data["position"]
+    @Slot()
+    def edit_picked_object_from_panel(self):
+        if self.picked_object_type == 'source' and 0 <= self.picked_object_index < len(self.sources_data):
+            s_data = self.sources_data[self.picked_object_index]
+            if "position" in s_data and "position_str" not in s_data:
+                s_data["position_str"] = ",".join(map(str, s_data["position"]))
 
-        if picked_type == 'source':
-            s_data = self.sources_data[picked_idx]
-            # 展示详细信号参数
-            signal_params_str = '\n'.join([f"  - 频率: {c['freq']} Hz, 幅度: {c['amp']}" for c in s_data.get('signal_params', {}).get('components', [])])
-            info_text = (
-                f"选中的声源:\n名称: {s_data.get('name')}\n"
-                f"位置: ({picked_pos[0]:.2f}, {picked_pos[1]:.2f}, {picked_pos[2]:.2f}) m\n"
-                f"信号: {s_data.get('signal_type_display')}\n"
-                f"信号参数:\n{signal_params_str if signal_params_str else '无'}\n"
-                f"[编辑此声源]"
-            )
-            self.selected_object_info_label.setText(info_text)
-            # 支持一键编辑
-            def edit_source_from_panel():
-                dialog = SourcePropertiesDialog(self, source_data=s_data)
-                if dialog.exec() == QDialog.Accepted:
-                    updated_source_data = dialog.get_source_data()
-                    try:
-                        pos_vec = self.parse_vector_input(updated_source_data["position_str"], 3)
-                        updated_source_data["position"] = pos_vec
-                        self.sources_data[picked_idx] = updated_source_data
-                        self.sources_list_widget.item(picked_idx).setText(f"{updated_source_data['name']}: {updated_source_data['position_str']} ({updated_source_data['signal_type_display']})")
-                        QMessageBox.information(self, "成功", f"声源 '{updated_source_data['name']}' 已更新。")
-                        self.run_simulation_and_update_plots()
-                    except Exception as e:
-                        QMessageBox.critical(self, "更新失败", f"更新声源时出错: {e}")
-            self.selected_object_info_label.mousePressEvent = lambda event: edit_source_from_panel() if '[编辑此声源]' in self.selected_object_info_label.text() else None
-        elif picked_type == 'mic':
-            m_data = self.mics_data[picked_idx]
-            freq_params = m_data.get('freq_response_params', {})
-            freq_params_str = '\n'.join([f"  - {k}: {v}" for k, v in freq_params.items()])
-            info_text = (
-                f"选中的麦克风:\n名称: {m_data.get('name')}\n"
-                f"位置: ({picked_pos[0]:.2f}, {picked_pos[1]:.2f}, {picked_pos[2]:.2f}) m\n"
-                f"灵敏度: {m_data.get('sensitivity')}\n"
-                f"频响: {m_data.get('freq_response_type_display')}\n"
-                f"频响参数:\n{freq_params_str if freq_params_str else '无'}\n"
-                f"[编辑此麦克风]"
-            )
-            self.selected_object_info_label.setText(info_text)
-            def edit_mic_from_panel():
-                dialog = MicrophonePropertiesDialog(self, mic_data=m_data)
-                if dialog.exec() == QDialog.Accepted:
-                    updated_mic_data = dialog.get_mic_data()
-                    try:
-                        pos_vec = self.parse_vector_input(updated_mic_data["position_str"], 3)
-                        updated_mic_data["position"] = pos_vec
-                        self.mics_data[picked_idx] = updated_mic_data
-                        self.mics_list_widget.item(picked_idx).setText(f"{updated_mic_data['name']}: {updated_mic_data['position_str']} ({updated_mic_data['freq_response_type_display']})")
-                        QMessageBox.information(self, "成功", f"麦克风 '{updated_mic_data['name']}' 已更新。")
-                        self.run_simulation_and_update_plots()
-                    except Exception as e:
-                        QMessageBox.critical(self, "更新失败", f"更新麦克风时出错: {e}")
-            self.selected_object_info_label.mousePressEvent = lambda event: edit_mic_from_panel() if '[编辑此麦克风]' in self.selected_object_info_label.text() else None
+            dialog = SourcePropertiesDialog(self, source_data=s_data)
+            if dialog.exec() == QDialog.Accepted:
+                updated_source_data = dialog.get_source_data()
+                try:
+                    pos_vec = self.parse_vector_input(updated_source_data["position_str"], 3)
+                    updated_source_data["position"] = pos_vec
+                    self.sources_data[self.picked_object_index] = updated_source_data
+                    display_text = f"{updated_source_data['name']}: {updated_source_data['position_str']} ({updated_source_data['signal_type_display']})"
+                    self.sources_list_widget.item(self.picked_object_index).setText(display_text)
+                    QMessageBox.information(self, "成功", f"声源 '{updated_source_data['name']}' 已更新。")
+                    self.run_simulation_and_update_plots()
+                except Exception as e:
+                    QMessageBox.critical(self, "更新失败", f"更新声源时出错: {e}")
+
+        elif self.picked_object_type == 'mic' and 0 <= self.picked_object_index < len(self.mics_data):
+            m_data = self.mics_data[self.picked_object_index]
+            if "position" in m_data and "position_str" not in m_data:
+                m_data["position_str"] = ",".join(map(str, m_data["position"]))
+                
+            dialog = MicrophonePropertiesDialog(self, mic_data=m_data)
+            if dialog.exec() == QDialog.Accepted:
+                updated_mic_data = dialog.get_mic_data()
+                try:
+                    pos_vec = self.parse_vector_input(updated_mic_data["position_str"], 3)
+                    updated_mic_data["position"] = pos_vec
+                    self.mics_data[self.picked_object_index] = updated_mic_data
+                    display_text = f"{updated_mic_data['name']}: {updated_mic_data['position_str']} ({updated_mic_data['freq_response_type_display']})"
+                    self.mics_list_widget.item(self.picked_object_index).setText(display_text)
+                    QMessageBox.information(self, "成功", f"麦克风 '{updated_mic_data['name']}' 已更新。")
+                    self.run_simulation_and_update_plots()
+                except Exception as e:
+                    QMessageBox.critical(self, "更新失败", f"更新麦克风时出错: {e}")
         else:
-            self.selected_object_info_label.setText("点击了3D场景中的空白区域。")
-            self.selected_object_info_label.mousePressEvent = None
+            QMessageBox.warning(self, "操作无效", "没有有效选中的对象可供编辑。")
 
     def save_config(self):
         config = {
+            "config_version": "1.0", # 新增版本号
             "room_dim": self.room_dims_input.text(),
             "rt60": self.rt60_input.text(),
             "duration": self.duration_input.text(),
@@ -1085,6 +1085,10 @@ class MainWindow(QMainWindow):
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
+                
+                loaded_version = config.get("config_version", "unknown")
+                print(f"加载的配置文件版本: {loaded_version}") # 打印版本号
+
                 self.room_dims_input.setText(",".join(str(x) for x in config["room_dim"]))
                 self.rt60_input.setText(str(config["rt60"]))
                 self.duration_input.setText(str(config["duration"]))

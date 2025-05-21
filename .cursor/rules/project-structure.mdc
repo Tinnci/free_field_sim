@@ -7,13 +7,13 @@ alwaysApply: false
 
 - 主入口为 [hello.py](mdc:hello.py)，用于运行仿真主流程。
 - 所有核心功能模块均位于 [src](mdc:src) 目录下，便于扩展和维护：
-  - [simulation.py](mdc:src/simulation.py)：包含 `SoundSource`、`Microphone` 类及 `simulate_with_pyroomacoustics` 仿真函数。
-  - [evaluation.py](mdc:src/evaluation.py)：包含阵列输出评估函数 `evaluate_array_output_conceptual`。
+  - [simulation.py](mdc:src/simulation.py)：包含 `SoundSource`、`Microphone` 类及 `simulate_with_pyroomacoustics` 仿真函数，支持多声源仿真。
+  - [evaluation.py](mdc:src/evaluation.py)：包含阵列输出评估函数 `evaluate_array_output_conceptual`，可扩展多源评估。
   - [visualization.py](mdc:src/visualization.py)：包含信号与房间可视化函数及可嵌入GUI的2D绘图函数。
   - [visualization3d.py](mdc:src/visualization3d.py)：3D房间、声源、麦克风可视化核心，支持嵌入GUI。
-  - [gui/main_window.py](mdc:src/gui/main_window.py)：PySide6 GUI主窗口，已集成3D和2D（RIR/时域/频域）信号可视化。
+  - [gui/main_window.py](mdc:src/gui/main_window.py)：PySide6 GUI主窗口，已集成3D和2D（RIR/时域/频域）信号可视化，支持属性面板按钮编辑。
 - 依赖管理和包配置见 [pyproject.toml](mdc:pyproject.toml)。
-- **主入口、核心模块、GUI、可视化、评估、配置管理等结构已实现，便于扩展。**
+- **主入口、核心模块、GUI、可视化、评估、配置管理等结构已实现，支持多声源仿真、配置版本号、3D属性面板按钮等功能。**
 
 如需扩展功能，请在 `src` 目录下新建模块并在主入口导入。GUI相关建议优先放在 `src/gui/` 下。
 

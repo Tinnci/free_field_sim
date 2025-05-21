@@ -6,9 +6,10 @@ alwaysApply: false
 # 仿真配置管理规范
 
 - 所有仿真场景参数（房间尺寸、RT60、信号时长、声源列表、麦克风列表等）支持保存为JSON文件，并可从JSON文件加载。
-- 推荐配置结构：
+- 配置结构：
 ```json
 {
+  "config_version": "1.0", // 版本号字段，便于未来兼容
   "room_dim": [6, 5, 3],
   "rt60": 0.3,
   "duration": 0.2,
@@ -18,6 +19,6 @@ alwaysApply: false
 ```
 - 相关实现见 [src/gui/main_window.py](mdc:src/gui/main_window.py) 的 `save_config` 和 `load_config` 方法。
 - 支持通过GUI按钮进行保存/加载，自动填充界面。
-- 后续可扩展更多参数（如声源信号类型、麦克风灵敏度等），建议保持向后兼容。
+- 配置结构分层、带版本号，兼容未来扩展。
 - 配置文件建议使用UTF-8编码，文件扩展名为`.json`。
 - **配置结构已支持详细对象参数，兼容性良好，便于后续扩展。**

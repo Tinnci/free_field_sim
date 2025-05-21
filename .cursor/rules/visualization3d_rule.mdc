@@ -14,7 +14,8 @@ files: ["[src/visualization3d.py](mdc:src/visualization3d.py)"]
 主要功能包括：
 - `plot_room_3d`: 使用 Matplotlib 3D 绘制房间、声源和麦克风。
 - `create_pyvista_scene`: 使用 PyVista 在 QtInteractor 中创建和绘制3D场景，用于GUI嵌入。
-- **已集成PyVista，支持基础3D交互（旋转、缩放、拾取、方向指示等），推荐用 track_click_position 实现对象点击拾取，支持结构化对象属性显示，高级功能如声场分布、动画为后续扩展。**
+- **已集成PyVista，支持基础3D交互（旋转、缩放、拾取、方向指示等），推荐用 track_click_position 实现对象拾取，支持结构化对象属性显示，高级功能如声场分布、动画为后续扩展。**
+- 3D属性面板已采用按钮编辑，3D视角重置已实现。
 
 它检查 PyVista 是否可用，并可以相应地调整其行为。
 
@@ -29,6 +30,8 @@ files: ["[src/visualization3d.py](mdc:src/visualization3d.py)"]
 **参考：**
 - [PyVistaQt官方API文档-QtInteractor](mdc:https:/qtdocs.pyvista.org/api_reference.html)
 - [PyVistaQt官方API文档-BackgroundPlotter](mdc:https:/qtdocs.pyvista.org/api_reference.html)
+
+
 
 
 
