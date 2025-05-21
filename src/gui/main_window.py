@@ -4,9 +4,10 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QGridLayout, QGroupBox, QMessageBox,
     QTabWidget, QListWidget, QListWidgetItem, QInputDialog, QDialog, QDialogButtonBox,
-    QSizePolicy # Added for sizing policy
+    QSizePolicy, QFileDialog # Added for sizing policy and file dialog
 )
 from PySide6.QtCore import Qt
+import json
 
 # Matplotlib imports for embedding
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -163,7 +164,14 @@ class MainWindow(QMainWindow):
         control_layout_v = QVBoxLayout()
         self.run_button = QPushButton("运行仿真与更新绘图")
         self.run_button.clicked.connect(self.run_simulation_and_update_plots)
+        # 新增保存/加载配置按钮
+        self.save_config_button = QPushButton("保存配置")
+        self.save_config_button.clicked.connect(self.save_config)
         control_layout_v.addWidget(self.run_button)
+        control_layout_v.addWidget(self.save_config_button)
+        self.load_config_button = QPushButton("加载配置")
+        self.load_config_button.clicked.connect(self.load_config)
+        control_layout_v.addWidget(self.load_config_button)
         control_group.setLayout(control_layout_v)
         left_panel_layout.addWidget(control_group)
         left_panel_layout.addStretch()
@@ -452,6 +460,49 @@ class MainWindow(QMainWindow):
                  info_text += f"\n中心: ({picked_actor.center[0]:.2f}, {picked_actor.center[1]:.2f}, {picked_actor.center[2]:.2f})"
 
         self.selected_object_info_label.setText(info_text)
+
+    def save_config(self):
+        config = {
+            "room_dim": self.room_dims_input.text(),
+            "rt60": self.rt60_input.text(),
+            "duration": self.duration_input.text(),
+            "sources": [self.sources_list_widget.item(i).text() for i in range(self.sources_list_widget.count())],
+            "microphones": [self.mics_list_widget.item(i).text() for i in range(self.mics_list_widget.count())]
+        }
+        # 转换字符串为数值列表
+        config["room_dim"] = [float(x) for x in config["room_dim"].split(",")]
+        config["rt60"] = float(config["rt60"])
+        config["duration"] = float(config["duration"])
+        config["sources"] = [[float(x) for x in s.split(",")] for s in config["sources"]]
+        config["microphones"] = [[float(x) for x in m.split(",")] for m in config["microphones"]]
+        file_path, _ = QFileDialog.getSaveFileName(self, "保存配置", "", "JSON Files (*.json)")
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+                QMessageBox.information(self, "成功", f"配置已保存到: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "保存失败", f"保存配置时出错: {e}")
+
+    def load_config(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "加载配置", "", "JSON Files (*.json)")
+        if file_path:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                # 填充界面
+                self.room_dims_input.setText(",".join(str(x) for x in config["room_dim"]))
+                self.rt60_input.setText(str(config["rt60"]))
+                self.duration_input.setText(str(config["duration"]))
+                self.sources_list_widget.clear()
+                for s in config["sources"]:
+                    self.sources_list_widget.addItem(",".join(str(x) for x in s))
+                self.mics_list_widget.clear()
+                for m in config["microphones"]:
+                    self.mics_list_widget.addItem(",".join(str(x) for x in m))
+                QMessageBox.information(self, "成功", f"配置已加载: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "加载失败", f"加载配置时出错: {e}")
 
 # 用于独立运行 GUI 进行测试
 if __name__ == '__main__':

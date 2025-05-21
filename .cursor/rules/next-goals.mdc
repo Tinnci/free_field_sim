@@ -3,38 +3,76 @@ description:
 globs: *.py
 alwaysApply: false
 ---
-# 项目下一步目标（2024.6更新）
+# 项目下一步目标（2024.6 更新）
 
+## 当前状态 (回顾)
 - 已实现：
-  - 3D房间/声源/麦克风可视化（Matplotlib），并集成于PySide6 GUI。
-  - 2D信号可视化（RIR、时域、频域）嵌入GUI。
-  - GUI支持动态增删声源/麦克风，位置可配置。
-  - 3D视图支持对象选择，点击声源/麦克风显示其详细参数。
+  - PySide6 GUI 框架，嵌入 Matplotlib 实现的2D信号图 (RIR/时域/频域)。
+  - **已迁移3D场景至 PyVista (`QtInteractor`)，实现嵌入式GUI显示和基本对象拾取。**
+  - GUI支持动态增删声源/麦克风（目前仅配置位置）。
+  - 支持仿真配置的保存与加载 (JSON格式，包含房间/声源/麦克风位置等基础参数)。
 
-- 下一步计划：
-  1. **对象参数可编辑**
-     - 支持在GUI中为每个声源/麦克风配置和编辑更多参数（如信号类型、灵敏度、频响等），不仅仅是位置。
-     - 可通过"添加/编辑"对话框或参数面板实现。
-  2. **3D视图交互增强**
-     - 支持对象拖拽移动、实时参数联动（如拖动3D点自动更新参数面板）。
-     - 若用Matplotlib实现较为复杂，建议迁移至PyVista，详见下方技术选型建议。
-  3. **配置管理**
-     - 支持仿真场景的保存与加载（房间、声源、麦克风及其参数），便于复现和分享。
-  4. **用户体验与健壮性**
-     - 持续完善输入校验、错误处理和用户反馈。
-     - 优化界面布局和交互流程。
+## 下一步详细计划
+
+**阶段一：增强对象参数配置与交互 (核心功能完善)**
+
+1.  **声源参数化 (Source Parameterization)**
+    *   **目标**: 允许用户为每个声源配置更详细的参数（名称、信号类型、信号参数）。
+    *   **GUI (`main_window.py`)**: 修改"添加/编辑声源"对话框；`sources_list_widget` 显示更丰富信息；更新3D拾取信息。
+    *   **数据结构 (`main_window.py`)**: `self.sources_data` 存储声源对象/字典列表。
+    *   **仿真 (`simulation.py`, `main_window.py`)**: 修改 `SoundSource` 类以处理新参数和信号生成 (正弦波、噪声、脉冲、文件加载)；`run_simulation_and_update_plots` 创建参数化的 `SoundSource` 对象。
+        *   **初期注意**: 仿真核心仍暂定使用第一个声源的信号，或所有声源使用相同信号。
+    *   **配置管理 (`main_window.py`)**: 更新 `save_config`/`load_config`。
+
+2.  **麦克风参数化 (Microphone Parameterization)**
+    *   **目标**: 允许用户为每个麦克风配置更详细的参数（名称、灵敏度、自噪声、频响类型及参数）。
+    *   **GUI (`main_window.py`)**: 修改"添加/编辑麦克风"对话框；`mics_list_widget` 显示更丰富信息；更新3D拾取信息。
+    *   **数据结构 (`main_window.py`)**: `self.mics_data` 存储麦克风对象/字典列表。
+    *   **仿真 (`simulation.py`, `main_window.py`)**: 修改 `Microphone` 类以处理新参数；`run_simulation_and_update_plots` 创建参数化的 `Microphone` 对象。
+    *   **配置管理 (`main_window.py`)**: 更新 `save_config`/`load_config`。
+
+3.  **PyVista 视图交互增强 (初步)**
+    *   **目标**: 提升3D视图用户体验。
+    *   **功能**: 
+        *   添加PyVista标准工具栏到嵌入的 `QtInteractor` ([src/gui/main_window.py](mdc:src/gui/main_window.py))。
+        *   (可选) 鼠标悬停对象高亮。
+
+**阶段二：仿真核心与可视化扩展**
+
+4.  **支持多声源信号同时仿真 (核心重构)**
+    *   **目标**: 多个声源同时发出各自配置的信号，并在仿真中叠加。
+    *   **仿真 (`simulation.py`)**: 修改 `simulate_with_pyroomacoustics` 以多次调用 `room.add_source()` 或使用 `pyroomacoustics` 的多源API。
+    *   **结果解读**: 注意RIR和接收信号的含义。
+
+5.  **高级3D可视化 (PyVista特性利用)**
+    *   **目标**: 展示更丰富的声学信息。
+    *   **示例**: 声压级分布图 (SPL Maps)，波前传播动画。
+
+**阶段三：用户体验与健壮性**
+
+6.  **输入校验与错误处理**
+    *   对所有用户输入进行更严格的校验。
+    *   提供更友好的错误提示和用户反馈。
+
+7.  **界面优化与文档**
+    *   根据使用反馈调整GUI布局和交互流程。
+    *   添加代码注释和用户文档。
 
 ---
 
-## 技术选型建议：Matplotlib vs PyVista
+## 技术选型回顾与建议
 
-- Matplotlib 3D：适合基础展示，交互性有限，扩展复杂。
-- PyVista（基于VTK）：强烈推荐用于高级3D交互（对象拾取、拖拽、动画、复杂渲染），易与Qt集成，适合后续功能扩展。
-- 迁移PyVista的好处：见"dev-roadmap"规则或向AI咨询。
+- **3D可视化**: 已从Matplotlib迁移到 **PyVista (`QtInteractor`)**，实现了GUI嵌入。后续利用其高级交互和渲染能力。
+    - 相关文件: [src/visualization3d.py](mdc:src/visualization3d.py), [src/gui/main_window.py](mdc:src/gui/main_window.py)
+- **2D可视化**: 继续使用 Matplotlib 嵌入GUI。
+- **GUI框架**: PySide6。
+- **核心仿真**: [pyroomacoustics](mdc:src/simulation.py)。
 
 ---
 
-如需具体模块设计、参数面板示例、PyVista集成代码等，可随时查阅本规则或补充新规则。
+如需具体模块设计、参数面板示例、特定功能实现代码等，可随时查阅本规则或补充新规则。
+
+
 
 
 
