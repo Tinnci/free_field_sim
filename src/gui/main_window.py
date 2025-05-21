@@ -492,8 +492,8 @@ class MainWindow(QMainWindow):
             # It also acts as a plotter, so create_pyvista_scene can use it.
             self.pv_plotter = QtInteractor(self.tab_3d, auto_update=True)
             # self.pv_plotter.set_background('lightgray') # Set background if desired
-            self.pv_plotter.add_axes_orientation_widget(True) # 添加坐标轴方向指示
-            self.pv_plotter.add_bounding_box_widget() # 添加边界框控制
+            self.pv_plotter.add_camera_orientation_widget(True) # 添加坐标轴方向指示
+            self.pv_plotter.add_bounding_box() # 添加边界框控制
             # self.pv_plotter.show_grid() # 显示网格，如果需要的话
 
             self.tab_3d_layout.addWidget(self.pv_plotter) # Add QtInteractor widget directly
